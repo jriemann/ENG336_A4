@@ -5,7 +5,7 @@ BSD License
 import numpy as np
 
 # data I/O
-data = open('input.txt', 'r').read() # should be simple plain text file
+data = open('shakespeare_train.txt', 'r').read() # should be simple plain text file
 chars = list(set(data))
 data_size, vocab_size = len(data), len(chars)
 print 'data has %d characters, %d unique.' % (data_size, vocab_size)
@@ -78,6 +78,26 @@ def sample(h, seed_ix, n):
     ixes.append(ix)
   return ixes
 
+def sample_with_temp(h, seed_ix, n, temp):
+  """ 
+  sample a sequence of integers from the model 
+  h is memory state, seed_ix is seed letter for first time step
+  """
+  assert(temp>0)
+  x = np.zeros((vocab_size, 1))
+  x[seed_ix] = 1
+  ixes = []
+  for t in xrange(n):
+    h = np.tanh(np.dot(Wxh, x) + np.dot(Whh, h) + bh)
+    y = np.dot(Why, h) + by
+    p = np.exp(y/temp) / np.sum(np.exp(y/temp)) # This is where we apply temperature.
+    ix = np.random.choice(range(vocab_size), p=p.ravel())
+    x = np.zeros((vocab_size, 1))
+    x[ix] = 1
+    ixes.append(ix)
+  return ixes
+
+
 n, p = 0, 0
 mWxh, mWhh, mWhy = np.zeros_like(Wxh), np.zeros_like(Whh), np.zeros_like(Why)
 mbh, mby = np.zeros_like(bh), np.zeros_like(by) # memory variables for Adagrad
@@ -92,9 +112,12 @@ while True:
 
   # sample from the model now and then
   if n % 100 == 0:
-    sample_ix = sample(hprev, inputs[0], 200)
-    txt = ''.join(ix_to_char[ix] for ix in sample_ix)
-    print '----\n %s \n----' % (txt, )
+    for t in [0.1, 0.5, 0.9, 1.0, 5.0, 10.0]: # Get samples for various temperatures.
+        #sample_ix = sample(hprev, inputs[0], 200)
+        sample_ix = sample_with_temp(hprev, inputs[0], 200, t)
+        txt = ''.join(ix_to_char[ix] for ix in sample_ix)
+        print('t=%f' % t)
+        print '----\n %s \n----' % (txt, )
 
   # forward seq_length characters through the net and fetch gradient
   loss, dWxh, dWhh, dWhy, dbh, dby, hprev = lossFun(inputs, targets, hprev)
