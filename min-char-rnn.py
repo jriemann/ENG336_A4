@@ -97,6 +97,38 @@ def sample_with_temp(h, seed_ix, n, temp):
     ixes.append(ix)
   return ixes
 
+def complete_string(h, incomplete, max_len=100):
+    """
+    Use the rnn h to complete the string 'incomplete', up to max_len characters.
+    """
+    print("Completing string: " + str(incomplete))
+    if len(incomplete) < 1:
+        last = char_to_ix[" "]
+    else:
+        last = char_to_ix[incomplete[-1]]
+
+    #x = np.zeros((vocab_size, 1))
+    #x[last] = 1
+    #ixes = []
+    #hidden_activity = f(last) ???
+    while len(incomplete) < max_len and (incomplete[-1] not in [" ", "\n"]):
+        
+        # generate a prediction using h.
+        new_char = sample(h, last, 1)
+        last = new_char
+        incomplete = incomplete + ix_to_char[new_char[0]]
+        
+
+    return incomplete
+
+
+PART_1 = False
+PART_2 = True
+
+if PART_1:
+    temps = [0.1, 0.5, 0.9, 1.0, 5.0, 10.0]
+else:
+    temps = [1.0]
 
 n, p = 0, 0
 mWxh, mWhh, mWhy = np.zeros_like(Wxh), np.zeros_like(Whh), np.zeros_like(Why)
@@ -112,8 +144,9 @@ while True:
 
   # sample from the model now and then
   if n % 100 == 0:
-    for t in [0.1, 0.5, 0.9, 1.0, 5.0, 10.0]: # Get samples for various temperatures.
+    for t in temps: # Get samples for various temperatures.
         #sample_ix = sample(hprev, inputs[0], 200)
+        print(inputs)
         sample_ix = sample_with_temp(hprev, inputs[0], 200, t)
         txt = ''.join(ix_to_char[ix] for ix in sample_ix)
         print('t=%f' % t)
@@ -123,6 +156,18 @@ while True:
   loss, dWxh, dWhh, dWhy, dbh, dby, hprev = lossFun(inputs, targets, hprev)
   smooth_loss = smooth_loss * 0.999 + loss * 0.001
   if n % 100 == 0: print 'iter %d, loss: %f' % (n, smooth_loss) # print progress
+
+
+  if n > 100000 and PART_2:
+      print(complete_string(hprev, "Citiz", 10)) # hopefully ...ze...
+      print(complete_string(hprev, "th", 10))
+      print(complete_string(hprev, "h", 10))
+      print(complete_string(hprev, ":", 10)) # hopefully \n
+      print(complete_string(hprev, " ", 10))
+      print(complete_string(hprev, "\n", 10))
+
+      exit()
+      
   
   # perform parameter update with Adagrad
   for param, dparam, mem in zip([Wxh, Whh, Why, bh, by], 
@@ -133,3 +178,5 @@ while True:
 
   p += seq_length # move data pointer
   n += 1 # iteration counter 
+
+
